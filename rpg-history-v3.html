@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>GAME LOG — RPG</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,900&display=swap">
+<style>
+  :root{
+    --bg:#100E14;
+    --panel:#1B1723;
+    --border-soft:#2A2534;
+    --text:#F3F0F5;
+    --sub:#948DA3;
+    --played:#7FC8D9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -5%, rgba(185,139,224,0.08), transparent),
+      var(--bg);
+    color:var(--text);
+    font-family:'Zen Kaku Gothic New','Inter',sans-serif;
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+
+  header{
+    position:sticky;top:0;z-index:30;
+    padding:12px 20px 10px;
+    background:rgba(16,14,20,0.94);
+    backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--border-soft);
+  }
+  .header-top{display:flex;align-items:baseline;justify-content:space-between;}
+  h1{
+    font-family:'Fraunces',serif;font-weight:900;font-size:16px;
+    font-style:italic;letter-spacing:0.01em;color:var(--sub);
+  }
+  .genre-heading-title{
+    font-family:'Fraunces',serif;font-weight:700;font-size:20px;font-style:italic;
+    background:linear-gradient(90deg, #fff, var(--played));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .genre-heading-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sub);}
+
+  .epithet-filter{
+    display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:2px;
+    scrollbar-width:none;
+  }
+  .epithet-filter::-webkit-scrollbar{display:none;}
+  .epithet-chip{
+    flex-shrink:0;font-family:'Inter',sans-serif;font-weight:600;font-size:10px;
+    letter-spacing:0.02em;white-space:nowrap;cursor:pointer;
+    padding:5px 10px;border-radius:999px;
+    background:transparent;transition:all 0.15s ease;
+    opacity:0.55;
+  }
+  .epithet-chip.active{opacity:1;}
+  .epithet-chip.all-toggle{
+    position:sticky;left:0;z-index:1;
+    background:var(--panel);border:1px solid var(--border-soft);
+    color:var(--text);opacity:1;
+  }
+
+  main{
+    background:var(--bg);
+  }
+
+  /* ---- 上段: 本流タイトルの行（横スクロールのみ、画面上部に固定） ---- */
+  .main-row-outer{
+    position:sticky;top:0;z-index:20;
+    overflow-x:auto;overflow-y:hidden;
+    background:var(--bg);
+    border-bottom:1px solid var(--border-soft);
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .main-row-outer::-webkit-scrollbar{display:none;}
+  .main-row-inner{
+    position:relative;width:max-content;
+  }
+
+  /* ---- 下段: 後継作カードのエリア（縦横スクロール可能） ---- */
+  .branch-area-outer{
+    overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    padding-top:16px;
+    scrollbar-width:none;
+  }
+  .branch-area-outer::-webkit-scrollbar{display:none;}
+  .branch-area-inner{
+    position:relative;width:max-content;
+  }
+
+  .scroll-hint{
+    display:flex;align-items:center;gap:6px;padding:8px 20px 0;
+    font-size:10px;color:var(--sub);font-family:'JetBrains Mono',monospace;
+  }
+
+  svg.lines{position:absolute;top:0;left:0;pointer-events:none;}
+
+  .main-node{
+    position:absolute;transform:translateX(-50%);
+    display:flex;flex-direction:column;align-items:center;
+    width:168px;z-index:2;cursor:pointer;
+    transition:opacity 0.2s ease, filter 0.2s ease;
+  }
+  .main-node.dimmed{opacity:0.28;filter:grayscale(0.6);}
+  .branch-node.dimmed{opacity:0.22;filter:grayscale(0.6);}
+  .line-dimmed{opacity:0.15 !important;}
+  .main-dot{
+    width:17px;height:17px;border-radius:50%;
+    border:3px solid var(--bg);
+    cursor:pointer;position:relative;z-index:6;
+  }
+  .main-dot.played{box-shadow:0 0 0 3px rgba(127,200,217,0.3);}
+  .main-dot.todo{box-shadow:0 0 0 3px rgba(255,255,255,0.14);}
+
+  .main-year{
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sub);
+    margin-top:8px;
+  }
+  .main-title{
+    font-family:'Fraunces',serif;font-weight:700;font-size:14px;line-height:1.3;
+    text-align:center;margin-top:4px;color:#FFFFFF;cursor:pointer;
+    height:38px;overflow:hidden;
+  }
+  .main-epithet{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:8.5px;
+    letter-spacing:0.02em;text-align:center;margin-top:3px;
+    padding:2px 8px;border-radius:999px;
+    white-space:nowrap;
+  }
+  .main-status{
+    margin-top:6px;width:20px;height:20px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    background:rgba(255,255,255,0.08);color:var(--sub);
+  }
+  .main-status.played{background:rgba(127,200,217,0.24);color:var(--played);}
+  .main-status svg{width:10px;height:10px;}
+
+  .main-note{
+    width:168px;height:76px;font-size:9.5px;line-height:1.55;color:#F0EDF4;
+    text-align:center;margin-top:8px;
+    background:#241E2F;
+    border:1px solid #3A3248;
+    border-radius:8px;
+    position:relative;z-index:2;
+    overflow:hidden;
+  }
+  .main-note-inner{
+    padding:8px 9px;
+  }
+  .main-note::after{
+    content:'';position:absolute;left:0;right:0;bottom:0;height:18px;
+    background:linear-gradient(to bottom, transparent, #241E2F);
+  }
+  .main-note b{color:#fff;font-weight:700;}
+
+  .branch-node{
+    position:absolute;transform:translateX(-50%);
+    width:126px;text-align:center;cursor:pointer;z-index:2;
+    transition:opacity 0.2s ease, filter 0.2s ease;
+  }
+  .branch-card{
+    background:#1B1723;border:1px solid var(--border-soft);
+    border-radius:8px;padding:9px 9px 10px;border-top-width:3px;
+  }
+  .branch-dot{
+    width:8px;height:8px;border-radius:50%;
+    margin:0 auto 5px;position:relative;z-index:6;
+    border:2px solid var(--bg);
+  }
+  .branch-year{
+    font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--sub);
+  }
+  .branch-title{
+    font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:11.5px;
+    line-height:1.35;color:#FFFFFF;margin-top:3px;
+    height:31px;overflow:hidden;
+  }
+  .branch-note{
+    font-size:9.5px;line-height:1.6;color:#C7C1D1;margin-top:5px;
+    height:46px;overflow:hidden;
+  }
+
+  .empty{text-align:center;padding:60px 20px;color:var(--sub);font-size:13px;}
+
+  /* ---- 詳細ダイアログ ---- */
+  .detail-overlay{
+    position:fixed;inset:0;z-index:100;
+    background:rgba(8,7,11,0.72);
+    backdrop-filter:blur(6px);
+    display:flex;align-items:flex-end;justify-content:center;
+    opacity:0;pointer-events:none;
+    transition:opacity 0.22s ease;
+  }
+  .detail-overlay.open{opacity:1;pointer-events:auto;}
+  .detail-sheet{
+    position:relative;
+    width:100%;max-width:520px;max-height:82vh;overflow-y:auto;
+    background:var(--panel);
+    border-top-left-radius:20px;border-top-right-radius:20px;
+    border:1px solid var(--border-soft);border-bottom:none;
+    padding:0 0 28px;
+    transform:translateY(24px);
+    transition:transform 0.24s ease;
+    -webkit-overflow-scrolling:touch;
+  }
+  .detail-overlay.open .detail-sheet{transform:translateY(0);}
+  .detail-handle{
+    width:36px;height:4px;border-radius:999px;background:var(--border-soft);
+    margin:10px auto 6px;
+  }
+  .detail-accent{
+    width:100%;height:6px;
+  }
+  .detail-close{
+    position:absolute;top:10px;right:10px;z-index:2;
+    width:30px;height:30px;border-radius:50%;
+    background:rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;border:none;cursor:pointer;
+  }
+  .detail-video-wrap{
+    position:relative;width:100%;aspect-ratio:16/9;
+    background:#000;overflow:hidden;
+  }
+  .detail-video-wrap iframe{
+    position:absolute;top:0;left:0;width:100%;height:100%;border:0;
+  }
+  .detail-video-caption{
+    padding:8px 20px 0;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--sub);
+  }
+  .detail-video-caption span{flex:1;min-width:0;}
+  .detail-video-link{
+    flex-shrink:0;display:inline-flex;align-items:center;gap:4px;
+    font-family:'Inter',sans-serif;font-weight:600;font-size:10px;
+    color:var(--played);text-decoration:none;
+    padding:4px 9px;border-radius:6px;
+    background:rgba(255,255,255,0.06);
+    white-space:nowrap;
+  }
+  .detail-body{padding:18px 20px 4px;}
+  .detail-title{
+    font-family:'Fraunces',serif;font-weight:700;font-size:21px;
+    color:#fff;line-height:1.3;
+  }
+  .detail-epithet{
+    display:inline-block;margin-top:10px;
+    font-family:'Inter',sans-serif;font-weight:600;font-size:10.5px;
+    padding:3px 10px;border-radius:999px;
+  }
+  .detail-meta{
+    margin-top:12px;display:flex;align-items:center;flex-wrap:wrap;gap:7px;
+    font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--sub);
+  }
+  .detail-meta-item{
+    display:flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,0.05);
+    padding:4px 9px;border-radius:6px;
+  }
+  .detail-meta-label{
+    font-family:'Inter',sans-serif;font-size:8.5px;font-weight:700;
+    color:var(--sub);opacity:0.65;
+  }
+  .detail-section{
+    margin-top:18px;padding-top:14px;border-top:1px solid var(--border-soft);
+  }
+  .detail-section-label{
+    font-family:'Inter',sans-serif;font-weight:700;font-size:10px;
+    letter-spacing:0.04em;text-transform:uppercase;color:var(--sub);
+  }
+  .detail-section-body{
+    margin-top:7px;font-size:13.5px;line-height:1.75;color:#E4E0EC;
+  }
+  .detail-section-body b{color:#fff;}
+  .detail-trivia .detail-section-label{color:var(--played);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>GAME LOG</h1>
+    <div style="display:flex;align-items:baseline;gap:8px;">
+      <div class="genre-heading-title">RPG</div>
+      <div class="genre-heading-count" id="genreCount"></div>
+    </div>
+  </div>
+  <div class="epithet-filter" id="epithetFilter"></div>
+</header>
+
+<main>
+  <div class="main-row-outer" id="mainRowOuter">
+    <div class="main-row-inner" id="mainRowInner"></div>
+  </div>
+  <div class="scroll-hint">← 横スクロールで年代を辿れます。系譜は下にスクロール</div>
+  <div class="branch-area-outer" id="branchAreaOuter">
+    <div class="branch-area-inner" id="branchAreaInner"></div>
+  </div>
+</main>
+
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetailOnOverlay(event)">
+  <div class="detail-sheet" id="detailSheet">
+    <div class="detail-handle"></div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+
+// 系列ごとの識別色（本流ノード・接続線・後継カードの上辺に使用）
+const LINEAGE_COLORS = [
+  "#B98BE0", // Wizardry系（3Dダンジョン探索の始祖）
+  "#6BE8C4", // Ultima系（フィールド探索・自由度）
+  "#E8D06B", // Rogue系（ローグライク）
+  "#E88D6B", // ドラゴンクエスト系（国産RPGの大衆化）
+  "#6BB4E8", // ファイナルファンタジー系（映像表現・世界的ヒット）
+  "#8D6BE8", // 女神転生系（和製ダークファンタジー）
+  "#6BE88D", // ゼルダの伝説系（アクションRPG・オープンワールド）
+  "#E8C36B", // クロノ・トリガー系（物語構造の革新）
+  "#C46BE8", // タクティクスオウガ/FE系（シミュレーションRPG）
+  "#E86BAA", // ポケットモンスター系（収集・対戦育成）
+  "#E86B4A", // Diablo系（ハクスラ・アクションRPG）
+  "#6BE8A8", // Baldur's Gate系（CRPG・対話選択）
+  "#4AA8E8", // World of Warcraft系（MMORPG）
+  "#A8E86B", // The Elder Scrolls系（オープンワールドRPG）
+  "#E86B8D", // Dark Souls系（ソウルライク）
+  "#C4A8E8", // Undertale/Disco Elysium系（インディー・実験的RPG）
+  "#E8B36B", // スーパーマリオRPG系（タイミングアクション戦闘）
+  "#B3E86B", // パズル&ドラゴンズ系（ガチャ・モバイルRPG）
+  "#6BC4E8", // 原神系（二次元系オープンワールドRPG）
+  "#D06BE8", // Vampire Survivors系（サバイバーライク）
+  "#6B8DE8", // Fallout系（ポストアポカリプスRPG）
+  "#8DE86B"  // ドラッグオンドラグーン/ニーア系（実存主義・鬱系RPG）
+];
+
+// RPGジャンルの主軸16系列。descendants = ジャンルに新しい意義をもたらした転換点。各系列に「傑作」と「最新作」を含む。
+let games = [
+  {
+    id: 1, title: "Wizardry", year: 1981, platform: "Apple II", meta: null, status: "todo",
+    epithet: "3Dダンジョン探索の始祖",
+    significance: "<b>RPGの始祖。</b>3Dダンジョン探索と成長システムの原型を確立。",
+    developer: "Sir-Tech",
+    about: "6人パーティで3Dダンジョンに挑む一人称視点RPG。仲間の死が二度と戻らない緊張感と、地図を自分の手で描く手探りの探索体験が特徴。",
+    trivia: "国内では発売元PC-8801版などを通じ、堀井雄二・坂口博信ら後のドラクエ／FF開発者に直接的な影響を与えた。",
+    youtubeId: "VyM9tmAqV3M", videoSource: "officialish", videoCredit: "Digital Eclipse (2023年リメイク版トレーラー)",
+    descendants: [
+      { title: "Wizardry #4", year: 1987, platform: "Apple II", developer: "Sir-Tech",
+        note: "ラスボス側を操作する異色作",
+        about: "シリーズ第1作のラスボス・Werdnaを操作し、侵入者を返り討ちにする逆転の発想で作られた異色作。当時としては前代未聞のプレイヤー体験を提供した。",
+        trivia: "難易度が非常に高く、シリーズ随一の「クソゲー」「良作」と評価が二分される問題作としても知られる。" },
+      { title: "New Wizardry (#6-8)", year: 1990, platform: "PC-98", developer: "Sir-Tech",
+        note: "屋外探索を導入し常識を刷新",
+        about: "「Bane of the Cosmic Forge」から始まる新3部作。ダンジョンに加え、初めて地上フィールドの探索が導入され、シリーズの遊びの幅を大きく広げた。",
+        trivia: "" },
+      { title: "不思議のダンジョン", year: 1993, platform: "SFC", developer: "チュンソフト",
+        note: "国産で独自の探索型に発展。傑作系譜の起点",
+        about: "『トルネコの大冒険』として登場した、日本発の独自ローグライク。1歩進むごとにダンジョンの配置が変わる緊張感と、失敗すればゼロからやり直すハイリスクな探索を確立した。",
+        trivia: "後に「不思議のダンジョン」シリーズとして多数の派生作を生み、和製ローグライクの源流となった。" },
+      { title: "Wizardry Variants Daphne", year: 2023, platform: "iOS/Android", developer: "ドリコム",
+        note: "現代のスマホ向けに再構築した最新作",
+        about: "原点のダンジョン探索とパーティ育成をスマートフォン向けに再構築したソーシャルRPG。シリーズ40年以上の歴史を現代の遊び方に橋渡しした作品。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 2, title: "Ultima", year: 1981, platform: "Apple II", meta: null, status: "todo",
+    epithet: "自由探索とMMOの源流",
+    significance: "広大なフィールド探索と自由度・物語性を切り開いた元祖。",
+    developer: "Origin Systems",
+    about: "見下ろし型のフィールドマップを自由に歩き回れる、初期RPGの中でも特に開放的な世界観を持つ作品。宇宙船での戦闘など、当時としては異色の要素も詰め込まれていた。",
+    trivia: "国産RPGの多くがフィールド移動・街・ダンジョンという構成を踏襲しており、その原型はUltimaに遡るとされる。",
+    descendants: [
+      { title: "Ultima IV", year: 1985, platform: "Apple II", developer: "Origin Systems",
+        note: "「徳」という倫理システムを導入。傑作の呼び声高い",
+        about: "敵を倒すだけでなく、8つの美徳を体現することでゲームクリアを目指す、当時としては異例の倫理観を主題にしたRPG。単なる勧善懲悪ではない哲学的なテーマが評価された。",
+        trivia: "この「徳」のシステムはシリーズの根幹となり、以降のUltima作品全体を貫くテーマとなった。" },
+      { title: "Ultima VII", year: 1992, platform: "MS-DOS", developer: "Origin Systems",
+        note: "生きた世界のシミュレーションを追求",
+        about: "NPCが独自のスケジュールで生活し、物を持ち運べ、あらゆる物と干渉できる「生きた世界」を実現した集大成的作品。当時のRPGとしては圧倒的な自由度を誇った。",
+        trivia: "" },
+      { title: "Ultima Online", year: 1997, platform: "PC", developer: "Origin Systems",
+        note: "MMORPGの先駆け。本編はIXで完結し新作なし",
+        about: "数千人が同じ仮想世界を同時に共有する、商業的に成功した初期のMMORPG。プレイヤー同士の経済活動やハウジングなど、後のオンラインゲームの型を築いた。",
+        trivia: "シリーズ本編は1999年のUltima IXで終了しており、以降新作は出ていない。" }
+    ]
+  },
+  {
+    id: 3, title: "Rogue", year: 1980, platform: "UNIX", meta: null, status: "todo",
+    epithet: "ローグライクの起点",
+    significance: "<b>ローグライクの起点。</b>毎回変化するダンジョンと死の緊張感を確立。",
+    developer: "Michael Toy, Glenn Wichman",
+    about: "プレイするたびにダンジョンの構造がランダムに生成され、一度死ぬとセーブデータが消える「一回きり」の緊張感を特徴とするテキストベースの探索ゲーム。",
+    trivia: "この作品名から「ローグライク」というジャンル名そのものが生まれた。",
+    descendants: [
+      { title: "トルネコの大冒険", year: 1993, platform: "SFC", developer: "チュンソフト",
+        note: "国内にローグライクを広めた",
+        about: "ドラゴンクエストの世界観を借りつつ、Rogueの「一度死んだら最初から」という緊張感を日本のプレイヤーに広めた作品。以後「不思議のダンジョン」シリーズとして展開された。",
+        trivia: "" },
+      { title: "Hades", year: 2020, platform: "PC/Switch", developer: "Supergiant Games",
+        note: "物語性と融合。批評的傑作。GOTY候補",
+        about: "冥界の王の息子が脱出を試みるアクションローグライク。死ぬたびに物語が進行する設計で、繰り返しプレイに強い物語的必然性を持たせた点が高く評価された。",
+        trivia: "早期アクセス期間を通じてコミュニティの声を反映し続けた開発手法でも話題になった。" },
+      { title: "Balatro", year: 2024, platform: "Multi", developer: "LocalThunk",
+        note: "ポーカーと融合。TGA2024で3冠受賞",
+        about: "ポーカーの役をベースにしたデッキ構築ローグライク。ジョーカーカードを集めて役の得点を爆発的に伸ばしていく中毒性の高いゲームデザインが世界的ヒットに繋がった。",
+        trivia: "個人開発者LocalThunkによる作品で、The Game Awards 2024でベストインディーゲーム含む3部門を受賞した。" },
+      { title: "Hades II", year: 2025, platform: "PC/Switch", developer: "Supergiant Games",
+        note: "続編。早期アクセスで高評価の最新作",
+        about: "前作の主人公メリノエの姉が魔女として冥界の敵に挑む続編。呪文の組み合わせによる新戦闘システムを導入し、前作の評価をさらに引き上げている。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 4, title: "ドラゴンクエスト", year: 1986, platform: "FC", meta: null, status: "todo",
+    epithet: "国産RPGの大衆化",
+    significance: "<b>日本の家庭用RPGを国民的規模に。</b>複雑さを整理し裾野を広げた。",
+    developer: "エニックス",
+    about: "複雑だった海外RPGを、コマンド選択式の分かりやすい操作に整理し、日本の子供から大人まで遊べる形に落とし込んだ国産RPGの原点。シンプルな一本道の冒険が、逆に多くの人を惹きつけた。",
+    trivia: "堀井雄二はWizardryとUltimaの両方から着想を得て本作を企画したと語っている。",
+    descendants: [
+      { title: "ドラゴンクエストIII", year: 1988, platform: "FC", developer: "エニックス",
+        note: "転職導入。発売日に社会現象。金字塔",
+        about: "転職システムでキャラクター育成の自由度を大きく広げた、初期三部作の完結編。発売日には学校を休んで並ぶ子供が社会問題になるほどの熱狂を呼んだ。",
+        trivia: "発売日の混乱を受け、以降の続編は発売日を平日から休日に変更する対応がとられた。" },
+      { title: "ドラゴンクエストV", year: 1992, platform: "SFC", developer: "エニックス",
+        note: "モンスター仲間化で家族の物語に",
+        about: "主人公が幼少期から結婚、子育てまでを経験する、シリーズ屈指の人生を描いた物語。モンスターを仲間にできるシステムが初めて導入された作品でもある。",
+        trivia: "「今作の花嫁は誰にするか」という選択は、発売から30年以上経った今も語り継がれる名物ネタとなっている。" },
+      { title: "ドラゴンクエストXI", year: 2017, platform: "PS4/3DS", developer: "スクウェア・エニックス",
+        note: "シリーズの現代的到達点。世界的高評価",
+        about: "シリーズの伝統的な様式美を保ちながら、美麗な3Dグラフィックと丁寧な物語で世界的にも高く評価された作品。国内外でシリーズ最高評価を得ている。",
+        trivia: "" },
+      { title: "ドラゴンクエストIII HD-2D版", year: 2024, platform: "Multi", developer: "スクウェア・エニックス",
+        note: "原点をHD-2Dで再構築した最新作",
+        about: "初代IIIをドット絵と3D背景を融合させたHD-2Dグラフィックで再構築したリメイク版。原作の骨格を保ちながら、現代の映像表現で蘇らせた。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 5, title: "ファイナルファンタジー", year: 1987, platform: "FC", meta: null, status: "todo",
+    epithet: "映像表現と世界進出の転換点",
+    significance: "倒産寸前だったスクウェアの起死回生作。ジョブ制で拡張性を開いた。",
+    developer: "スクウェア",
+    about: "経営難だったスクウェアが社運を賭けて開発した、タイトル通り「最後」のつもりだった作品。自由に職業を選べるジョブシステムが特徴で、パーティ編成の戦略性を大きく広げた。",
+    trivia: "「ファイナル」の名は「もし売れなければ最後の作品になる」という覚悟から名付けられたとされる。",
+    descendants: [
+      { title: "魔界塔士Sa・Ga", year: 1989, platform: "GB", developer: "スクウェア",
+        note: "FF外伝として企画。携帯機初RPGでレベル制を廃した独自成長",
+        about: "ゲームボーイ初のRPGとして発売され、経験値によるレベルアップではなく戦った内容に応じて能力が伸びる独自の成長システムを採用。携帯機RPGというジャンル自体の先駆けとなった。",
+        trivia: "河津秋敏氏の代表作となり、以降の「サガ」シリーズへと発展していく。" },
+      { title: "ファイナルファンタジーVI", year: 1994, platform: "SFC", developer: "スクウェア",
+        note: "群像劇でSFC期の集大成に",
+        about: "14人の個性豊かなキャラクターが織りなす群像劇形式の物語。世界が一度崩壊し、その後の世界を再建していく大胆な展開が高く評価された、SFC期シリーズの集大成。",
+        trivia: "" },
+      { title: "ファイナルファンタジーVII", year: 1997, platform: "PS", developer: "スクウェア",
+        note: "3D化で世界的ヒットへ転換。金字塔",
+        about: "フルポリゴンの3Dグラフィックを本格導入し、世界的な大ヒットを記録した転換点的作品。環境破壊をテーマにしたシリアスな物語も話題を呼んだ。",
+        trivia: "本作の成功によりRPGというジャンルが世界的に広く認知されるきっかけとなった。" },
+      { title: "Kingdom Hearts", year: 2002, platform: "PS2", developer: "スクウェア",
+        note: "ディズニー×FFのクロスオーバーで新層を開拓",
+        about: "ディズニーキャラクターとFFキャラクターが共演する異色のアクションRPG。全く異なる作風を持つ二社のIPを融合させ、幅広い年齢層のファンを獲得した。",
+        trivia: "" },
+      { title: "ファイナルファンタジーX", year: 2001, platform: "PS2", developer: "スクウェア",
+        note: "フルボイスで演出をさらに推進",
+        about: "シリーズ初のフルボイス・フル3Dムービーを実現し、映画的な演出表現をRPGに持ち込んだ作品。キャラクター同士の掛け合いに感情の説得力を持たせた。",
+        trivia: "" },
+      { title: "ファイナルファンタジーXV", year: 2016, platform: "PS4/Xbox One", developer: "スクウェア・エニックス",
+        note: "オープンワールド×アクションへ転換",
+        about: "コマンド選択からリアルタイムアクション戦闘へと大きく舵を切った、オープンワールド形式の作品。4人の男たちのロードトリップという新しい物語の形を提示した。",
+        trivia: "" },
+      { title: "FFVII リバース", year: 2024, platform: "PS5", developer: "スクウェア・エニックス",
+        note: "リメイク第2部。Metacritic93点の最新作",
+        about: "FFVIIリメイクプロジェクトの第2部。原作中盤の広大なワールドマップをオープンワールドとして再構築し、批評家から極めて高い評価を得た。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 6, title: "女神転生", year: 1987, platform: "FC", meta: null, status: "todo",
+    epithet: "和製ダークファンタジーの開拓者",
+    significance: "悪魔仲間化システムで、和製ダークファンタジーRPGを開拓。",
+    developer: "アトラス",
+    about: "会話によって悪魔を仲間にする「悪魔合体」システムを軸にした、当時としては異色のダークな世界観のRPG。ファンタジー一辺倒だった国産RPG市場に、宗教・オカルト的な要素を持ち込んだ。",
+    trivia: "",
+    descendants: [
+      { title: "真・女神転生", year: 1992, platform: "SFC", developer: "アトラス",
+        note: "核戦争後の世界観で硬派路線を確立",
+        about: "東京を舞台に核戦争後の荒廃した世界を描いた作品。法・中立・混沌の三つの陣営から選ぶマルチエンディングと、シビアな難易度でシリーズの硬派な路線を確立した。",
+        trivia: "" },
+      { title: "ペルソナ3", year: 2006, platform: "PS2", developer: "アトラス",
+        note: "学園生活と探索の二層構造を確立。傑作",
+        about: "昼は高校生としての学園生活、夜は「タルタロス」でのダンジョン探索という二層構造を確立した転換作。時間の使い方を管理するカレンダーシステムも本作で確立された。",
+        trivia: "" },
+      { title: "ペルソナ5 Royal", year: 2019, platform: "PS4", developer: "アトラス",
+        note: "スタイリッシュな演出の完成形",
+        about: "怪盗団が悪しき大人の心を盗む、スタイリッシュな演出とUIデザインで高い評価を受けた作品。無印版に追加要素を加えた完全版がRoyal。",
+        trivia: "" },
+      { title: "Metaphor: ReFantazio", year: 2024, platform: "PS5/Xbox", developer: "スタジオゼロ",
+        note: "新規IPとして高評価を得た最新作",
+        about: "ペルソナシリーズの制作陣が新たに立ち上げた完全新規のファンタジーRPG。政治・差別といった社会的なテーマを、王座を巡る幻想世界の物語に織り込んでいる。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 7, title: "ゼルダの伝説", year: 1986, platform: "FC", meta: null, status: "played",
+    epithet: "アクションRPG／オープンワールドの原点",
+    significance: "<b>アクションRPGとオープンワールドの源流。</b>謎解きと探索を融合。",
+    developer: "任天堂",
+    about: "自由に広大なフィールドを探索しながら、剣とアイテムを駆使して謎を解き、ダンジョンを攻略していくアクションアドベンチャー。コマンド選択ではなくリアルタイムの操作を主体にしたRPG的探索の原点。",
+    trivia: "宮本茂が子供の頃に体験した「洞窟や森を探検する感覚」を再現したいという思いから企画されたとされる。",
+    descendants: [
+      { title: "時のオカリナ", year: 1998, platform: "N64", developer: "任天堂",
+        note: "3Dアクションの基準を確立。歴代最高評価",
+        about: "シリーズ初の3D化を果たし、ロックオン照準システムなど、以降の3Dアクションゲーム全般に影響を与える基準を確立した。時を超える壮大な物語も特徴。",
+        trivia: "複数のゲームメディアで「史上最高のゲーム」に選出されることが多い作品。" },
+      { title: "風のタクト", year: 2002, platform: "GC", developer: "任天堂",
+        note: "セル調グラフィックで新しい表現に",
+        about: "アニメ調のセルシェーディンググラフィックを採用し、広大な海を船で航海する探索スタイルを導入した作品。当時は賛否両論だったが、後年高く再評価されている。",
+        trivia: "" },
+      { title: "ブレス オブ ザ ワイルド", year: 2017, platform: "Switch", developer: "任天堂",
+        note: "自由な物理探索で再定義。GOTY",
+        about: "シリーズの様式を一度解体し、物理演算を活かした自由な探索と謎解きを実現したオープンワールド作品。あらゆる要素が相互作用する化学エンジンが高く評価された。",
+        trivia: "多数の年間ゲーム賞（GOTY）を受賞し、以後のオープンワールドゲーム全般の設計思想に影響を与えた。" },
+      { title: "ティアーズ オブ ザ キングダム", year: 2023, platform: "Switch", developer: "任天堂",
+        note: "創造性を組み込んだ発展形",
+        about: "前作の広大な世界に、パーツを組み合わせて乗り物や装置を自作できる「創造」の要素を追加した続編。上空・地上・地下の三層構造で探索の幅をさらに広げた。",
+        trivia: "" },
+      { title: "ゼルダの伝説 知恵のかりもの", year: 2024, platform: "Switch", developer: "任天堂",
+        note: "ゼルダ姫が主人公の最新作",
+        about: "シリーズで初めてゼルダ姫自身が主人公となる作品。物を「かりて」召喚し謎を解く独自のシステムを軸にした、これまでとは異なるプレイ感覚を提示している。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 8, title: "クロノ・トリガー", year: 1995, platform: "SFC", meta: null, status: "todo",
+    epithet: "物語構造の革新者",
+    significance: "<b>「時を超える」物語の革新作。</b>マルチエンディングで表現を拡張。",
+    developer: "スクウェア",
+    about: "時間を超えて過去・未来を行き来しながら世界の危機に立ち向かうRPG。プレイヤーの行動によって結末が変わる複数エンディング制と、当時としては斬新な演出のバトルで高く評価された。",
+    trivia: "堀井雄二・鳥山明・坂口博信という「ドリームチーム」体制で開発されたことでも知られる。",
+    descendants: [
+      { title: "クロノ・クロス", year: 1999, platform: "PS", developer: "スクウェア",
+        note: "並行世界のテーマを継承",
+        about: "前作の精神的続編として、並行世界というテーマをさらに深化させた作品。美しい水彩画調のグラフィックと壮大な音楽で独自の世界観を築いた。",
+        trivia: "" },
+      { title: "Sea of Stars", year: 2023, platform: "Multi", developer: "Sabotage Studio",
+        note: "本作へのオマージュを掲げた高評価最新作",
+        about: "開発者自らクロノ・トリガーへの敬意を公言する、カナダのインディースタジオによるドット絵RPG。タイミング入力を活かした戦闘システムで批評家から高い評価を得た。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 9, title: "ファイアーエムブレム 暗黒竜と光の剣", year: 1990, platform: "FC", meta: null, status: "todo",
+    epithet: "シミュレーションRPGの確立者",
+    significance: "<b>SRPGというジャンルを確立。</b>「死んだら戻らない」緊張感で戦術性と物語を融合。",
+    developer: "任天堂/インテリジェントシステムズ",
+    about: "マス目状のマップでキャラクターを動かし、駒として戦わせるシミュレーションRPG。ロストした（死んだ）ユニットは二度と戻らない緊張感が、単なる駒ではなくキャラクターへの愛着を生んだ。",
+    trivia: "このヒットによりSRPGというジャンルがゲームファンの間に広く浸透するきっかけとなった。",
+    descendants: [
+      { title: "タクティクスオウガ", year: 1995, platform: "SFC", developer: "クエスト",
+        note: "戦争群像劇へ発展。2022年に「リボーン」で再構築",
+        about: "複数の民族が争う内戦を舞台にした、重厚な戦争群像劇SRPG。プレイヤーの選択によって物語が分岐する構成と、緻密な戦術性で高く評価された。",
+        trivia: "2022年に「タクティクスオウガ リボーン」としてフルリメイクされ、現代でも遊びやすい形で蘇っている。" },
+      { title: "ファイナルファンタジータクティクス", year: 1997, platform: "PS", developer: "スクウェア",
+        note: "同スタッフによる社会派SRPG",
+        about: "貴族と平民の身分格差を背景にした、社会派の物語を持つSRPG。ジョブシステムをSRPGに応用し、育成の自由度と戦術性を両立させた。",
+        trivia: "" },
+      { title: "ファイアーエムブレム 風花雪月", year: 2019, platform: "Switch", developer: "インテリジェントシステムズ",
+        note: "SRPGの現代的最高傑作と評される",
+        about: "士官学校の教師として生徒を指導し、後に訪れる戦争で敵味方に分かれて戦うことになる物語。育成・恋愛・戦術の要素を高い完成度で融合させた。",
+        trivia: "" },
+      { title: "Triangle Strategy", year: 2022, platform: "Switch", developer: "アルテピアッツァ",
+        note: "松野氏監修HD-2D作品",
+        about: "塩・鉄・黄金の利権を巡る三国の争いを描く、プレイヤーの信念によって物語が変化するSRPG。タクティクスオウガを手がけた松野泰己氏が監修を務めた。",
+        trivia: "" },
+      { title: "ファイアーエムブレム 万紫千紅", year: 2026, platform: "Switch2", developer: "インテリジェントシステムズ",
+        note: "シリーズ最新作。2026年9月発売予定",
+        about: "シリーズ最新作として発表されたナンバリングタイトル。詳細は今後の情報公開を待つ段階だが、シリーズの伝統的な戦術性の継承が期待されている。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 10, title: "ポケットモンスター 赤・緑", year: 1996, platform: "GB", meta: null, status: "played",
+    epithet: "収集・対戦育成の原点",
+    significance: "<b>収集・対戦・交換を融合。</b>世界最大級のゲームIPの原点。",
+    developer: "ゲームフリーク",
+    about: "モンスターを捕まえて育て、他のプレイヤーと通信ケーブルで交換・対戦するという、収集と交流を軸にしたRPG。子供の「昆虫採集」の楽しさをゲームに落とし込んだ企画から生まれた。",
+    trivia: "開発者の田尻智氏が幼少期に熱中していた昆虫採集の体験が企画の原点になったとされる。",
+    descendants: [
+      { title: "ポケットモンスター 金・銀", year: 1999, platform: "GB", developer: "ゲームフリーク",
+        note: "育成要素と地域を拡張。傑作の呼び声",
+        about: "新たに100種のポケモンと新地方を追加し、昼夜の概念や育て屋など育成要素を大幅に拡張した続編。前作の地方も冒険できるボリュームで高く評価された。",
+        trivia: "" },
+      { title: "ポケットモンスター スカーレット・バイオレット", year: 2022, platform: "Switch", developer: "ゲームフリーク",
+        note: "完全オープンワールド化",
+        about: "シリーズで初めて、街やダンジョンの区切りのない完全なオープンワールド形式を採用した作品。自由な順序でジムやストーリーを進められる設計に刷新された。",
+        trivia: "" },
+      { title: "Pokémon LEGENDS Z-A", year: 2025, platform: "Switch2", developer: "ゲームフリーク",
+        note: "リアルタイムアクション戦闘を導入した最新作",
+        about: "都市を舞台に、これまでのターン制コマンドバトルから一新したリアルタイムアクション戦闘を導入した意欲作。シリーズの戦闘システムの転換点となる作品。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 11, title: "Diablo", year: 1997, platform: "PC", meta: null, status: "todo",
+    epithet: "ハクスラの元祖",
+    significance: "<b>ハクスラの元祖。</b>リアルタイム戦闘と乱数装備で中毒性を確立。",
+    developer: "Blizzard North",
+    about: "マウスクリックだけで敵を倒し続ける、リアルタイムのアクションRPG。ランダムに生成される装備品を求めて敵を狩り続ける「ハック＆スラッシュ」の中毒性を確立した。",
+    trivia: "",
+    descendants: [
+      { title: "Diablo II", year: 2000, platform: "PC", developer: "Blizzard North",
+        note: "スキルツリーで戦略性を拡張。歴代最高傑作と評される",
+        about: "職業ごとの専用スキルツリーを導入し、キャラクタービルドの戦略性を大きく広げた続編。長年「ジャンル最高傑作」として語り継がれている。",
+        trivia: "" },
+      { title: "Path of Exile", year: 2013, platform: "PC", developer: "Grinding Gear Games",
+        note: "無料でジャンルを深化させた",
+        about: "基本無料でありながら、膨大なスキル選択肢を持つパッシブツリーで硬派なハクスラ体験を提供した作品。無料でもジャンルの深みを追求できることを証明した。",
+        trivia: "" },
+      { title: "Diablo IV", year: 2023, platform: "Multi", developer: "Blizzard Entertainment",
+        note: "オープンワールド化した最新ナンバリング",
+        about: "シリーズで初めてシームレスなオープンワールドを採用したナンバリング作品。ダークな世界観を保ちつつ、大規模なマルチプレイ要素も取り入れている。",
+        trivia: "" },
+      { title: "Path of Exile 2", year: 2024, platform: "PC", developer: "Grinding Gear Games",
+        note: "死にゲー化した続編。早期アクセスで大反響の最新作",
+        about: "前作から戦闘システムを刷新し、より高難度でシビアな死にゲー的な手応えを取り入れた続編。早期アクセス開始時から大きな話題を呼んだ。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 12, title: "Baldur's Gate", year: 1998, platform: "PC", meta: null, status: "todo",
+    epithet: "対話選択型CRPGの礎",
+    significance: "D&Dルールを再現し、対話選択型CRPGの礎を築いた。",
+    developer: "BioWare",
+    about: "テーブルトークRPG「D&D」のルールをPCゲームに忠実に再現し、豊富な会話選択肢によって物語が分岐するCRPGの礎を築いた作品。仲間キャラクターとの掛け合いも重視された。",
+    trivia: "",
+    descendants: [
+      { title: "Knights of the Old Republic", year: 2003, platform: "Xbox/PC", developer: "BioWare",
+        note: "善悪選択の設計を洗練",
+        about: "スター・ウォーズの世界を舞台にしたCRPG。プレイヤーの選択によってフォースの光と闇いずれに傾くかが変化する、善悪ゲージのシステムを洗練させた。",
+        trivia: "" },
+      { title: "Mass Effect 2", year: 2010, platform: "Xbox 360/PC", developer: "BioWare",
+        note: "選択の蓄積を続編へ反映。傑作",
+        about: "前作でのプレイヤーの選択がセーブデータを通じて続編に引き継がれる、シリーズを跨いだ物語の連続性を実現した作品。仲間の生死すら選択次第で変わる緊張感が評価された。",
+        trivia: "" },
+      { title: "Divinity: Original Sin 2", year: 2017, platform: "PC", developer: "Larian Studios",
+        note: "クラウドファンディングでCRPGを復興させた傑作",
+        about: "Kickstarterの支援を受けて開発された、環境相互作用と自由度の高さで知られるCRPG。あらゆる行動に対してシステムが反応する懐の深さで批評家から絶賛された。",
+        trivia: "開発元Larian StudiosはBaldur's Gate 3も手がけており、本作はその直接の前作にあたる。" },
+      { title: "Baldur's Gate 3", year: 2023, platform: "Multi", developer: "Larian Studios",
+        note: "自由度で金字塔に。GOTY受賞の最新到達点",
+        about: "あらゆる状況に対して用意された膨大な選択肢と反応で、CRPGの自由度を新たな高みに引き上げた作品。The Game Awardsでゲーム・オブ・ザ・イヤーを受賞した。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 13, title: "リネージュ", year: 1998, platform: "PC", meta: null, status: "todo",
+    epithet: "MMORPGの型を確立",
+    significance: "<b>韓国発、血盟・攻城戦システムの元祖。</b>大規模仮想世界を数千人が共有する型を確立。",
+    developer: "NCsoft",
+    about: "中世ファンタジーを舞台に、プレイヤー同士が「血盟」を結成して城を奪い合う大規模なオンラインRPG。韓国初の本格的なインターネット基盤オンラインゲームとして市場を切り開いた。",
+    trivia: "20年以上が経った現在も韓国を代表するオンラインゲームIPとして稼働を続けている。",
+    descendants: [
+      { title: "EverQuest", year: 1999, platform: "PC", developer: "Verant Interactive",
+        note: "3D化しMMORPGを北米で本格普及させた",
+        about: "3Dグラフィックの仮想世界を数千人が同時に共有する、北米市場でMMORPGを本格的に普及させた作品。以降のMMORPGの多くが本作のシステムを参考にしている。",
+        trivia: "" },
+      { title: "World of Warcraft", year: 2004, platform: "PC", developer: "Blizzard Entertainment",
+        note: "1200万人が遊ぶ世界的到達点。歴代最高傑作",
+        about: "最盛期には全世界で1200万人以上が同時にプレイした、MMORPGというジャンルの商業的頂点。分かりやすいクエスト設計と広大な世界観で新規層を大きく取り込んだ。",
+        trivia: "" },
+      { title: "FFXIV: 新生エオルゼア", year: 2013, platform: "PC/PS", developer: "スクウェア・エニックス",
+        note: "大失敗から再生した和製MMO",
+        about: "旧版の大失敗を受けて開発チームを一新し、ゼロから作り直した再起の作品。「もう一つの現実」と呼ばれるほどの物語の深さで国内外から高い評価を得ている。",
+        trivia: "旧版のサービス終了時に演出された「エオルゼア崩壊」のイベントは、ゲーム史に残る名場面として語り継がれている。" },
+      { title: "WoW: Midnight", year: 2026, platform: "PC", developer: "Blizzard Entertainment",
+        note: "住居機能を追加した最新拡張パック",
+        about: "シリーズ最新の拡張パック。プレイヤー専用の住居機能を新たに導入するなど、20年を超えるシリーズに新しい遊び方を追加し続けている。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 14, title: "The Elder Scrolls III: Morrowind", year: 2002, platform: "Xbox", meta: 89, status: "todo",
+    epithet: "箱庭オープンワールドの確立者",
+    significance: "シームレスな箱庭世界で、自由なオープンワールドRPGを確立。",
+    developer: "Bethesda Game Studios",
+    about: "ロード画面を挟まないシームレスな広大な世界を、ストーリーを無視してどこまでも自由に歩き回れる箱庭型オープンワールドRPG。「寄り道」自体を主目的にできる設計思想を確立した。",
+    trivia: "",
+    descendants: [
+      { title: "Xenoblade Chronicles", year: 2010, platform: "Wii", developer: "モノリスソフト",
+        note: "JRPGとWRPGを融合させた「世界RPG」の後継",
+        about: "巨神の死骸の上に広がる広大な世界を舞台にした、JRPGの物語性と洋ゲー的な自由な探索を融合させた作品。「世界そのものを冒険する」感覚を国産RPGに持ち込んだ。",
+        trivia: "" },
+      { title: "Skyrim", year: 2011, platform: "Multi", developer: "Bethesda Game Studios",
+        note: "箱庭型RPGの一つの完成形に。歴代屈指の傑作",
+        about: "ドラゴンと戦う運命を背負った主人公が、雪深い北国を自由に旅する作品。発売から10年以上経っても様々なプラットフォームで再発売され続けるロングセラーとなった。",
+        trivia: "" },
+      { title: "The Witcher 3", year: 2015, platform: "Multi", developer: "CD Projekt Red",
+        note: "物語性と自由度を高い水準で両立",
+        about: "モンスターハンターである主人公が養女を捜す旅を描く、重厚な物語と広大なオープンワールドを高い水準で両立させた作品。サブクエストの質の高さでも評価された。",
+        trivia: "" },
+      { title: "Starfield", year: 2023, platform: "Xbox/PC", developer: "Bethesda Game Studios",
+        note: "同スタジオが宇宙規模へ拡張した最新作",
+        about: "Skyrimと同じ開発スタジオが手がけた、舞台を宇宙全体に拡張したオープンワールドRPG。惑星探索と宇宙船建造といった新要素をシリーズの型に組み込んでいる。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 15, title: "Dark Souls", year: 2011, platform: "PS3", meta: 89, status: "todo",
+    epithet: "ソウルライクの生みの親",
+    significance: "<b>「ソウルライク」を生んだ作品。</b>高難度設計が世界的評価に。",
+    developer: "フロム・ソフトウェア",
+    about: "理不尽なほどの高難度と、一つ一つの敵・地形が意味を持つ緻密なレベルデザインで知られるダークファンタジーRPG。親切な説明を排し、プレイヤー自身が学び発見する体験を重視した。",
+    trivia: "本作の難しさと達成感が世界的に評価され、「ソウルライク」というジャンル名が生まれるきっかけとなった。",
+    descendants: [
+      { title: "Dark Souls II", year: 2014, platform: "PS3/Xbox 360", developer: "フロム・ソフトウェア",
+        note: "最多のボス・ステージ数で世界観を拡張",
+        about: "シリーズ最多のボス数・エリア数を誇る大ボリュームの続編。開発体制の変更もあり評価は割れたが、独自の魅力を持つ作品として今も根強い支持を集める。",
+        trivia: "" },
+      { title: "Bloodborne", year: 2015, platform: "PS4", developer: "フロム・ソフトウェア",
+        note: "攻撃的な戦闘へ再設計。傑作の呼び声高い",
+        about: "盾での防御ではなく攻めることを前提にした攻撃的な戦闘システムへ再設計した、ゴシックホラー風の作品。スピード感のある独自の戦闘感覚が高く評価された。",
+        trivia: "" },
+      { title: "Dark Souls III", year: 2016, platform: "Multi", developer: "フロム・ソフトウェア",
+        note: "シリーズ集大成。累計3000万本超",
+        about: "シリーズの様々な要素を集大成した、より速度感のある戦闘を持つ完結編。シリーズ全体で累計3000万本を超える販売数を記録している。",
+        trivia: "" },
+      { title: "SEKIRO", year: 2019, platform: "Multi", developer: "フロム・ソフトウェア",
+        note: "「弾き」主軸に再構築。GOTY受賞",
+        about: "戦国時代の日本を舞台に、敵の攻撃を「弾く」ことを主軸にした一対一の斬り合いを再構築した作品。The Game Awardsでゲーム・オブ・ザ・イヤーを受賞した。",
+        trivia: "" },
+      { title: "Elden Ring", year: 2022, platform: "Multi", developer: "フロム・ソフトウェア",
+        note: "オープンワールドと融合させた到達点",
+        about: "シリーズの高難度な死にゲー要素と、広大なオープンワールドを融合させた集大成的作品。ファンタジー作家ジョージ・R・R・マーティンが世界観設定に参加した。",
+        trivia: "" },
+      { title: "ELDEN RING NIGHTREIGN", year: 2025, platform: "Multi", developer: "フロム・ソフトウェア",
+        note: "協力型サバイバルへ派生した最新作",
+        about: "Elden Ringの世界観を舞台に、最大3人での協力プレイを前提としたサバイバル形式に再構築した派生作。時間経過とともに縮小するフィールドの中で生き残ることを目指す。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 16, title: "Undertale", year: 2015, platform: "PC", meta: null, status: "todo",
+    epithet: "インディー・実験的表現の開拓者",
+    significance: "戦わず解決する選択を戦闘に組み込み表現を拡張。制作者は日本のMOTHERを最大の影響源と公言。",
+    developer: "Toby Fox",
+    about: "モンスターと戦わずに「見逃す」「話しかける」といった選択で解決できる弾幕風の戦闘システムを持つRPG。プレイヤーの選択が世界に記憶され、複数の結末に繋がる構造を持つ。",
+    trivia: "制作者Toby Fox氏は本作をMOTHERシリーズへのオマージュとして企画したと公言している。",
+    descendants: [
+      { title: "Deltarune", year: 2018, platform: "PC", developer: "Toby Fox",
+        note: "精神的続編。戦闘拒否の思想をさらに発展",
+        about: "Undertaleと同じ制作者による精神的続編。戦闘を拒否せずとも敵を「懐柔」して仲間にできる独自のシステムを導入し、テーマをさらに掘り下げている。",
+        trivia: "" },
+      { title: "Disco Elysium", year: 2019, platform: "PC", developer: "ZA/UM",
+        note: "会話のみで進行し文学の域へ。批評的傑作",
+        about: "戦闘が一切存在せず、会話と内面のスキルチェックだけで進行する探偵RPG。文学的な文章量と哲学的なテーマの深さで、批評家から圧倒的な評価を得た。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 17, title: "スーパーマリオRPG", year: 1996, platform: "SFC", meta: null, status: "todo",
+    epithet: "タイミングアクション戦闘の開拓者",
+    significance: "<b>コマンド選択にアクション性を融合。</b>タイミング入力で難易度を左右する設計を確立。",
+    developer: "スクウェア",
+    about: "コマンド選択式の戦闘に、攻撃・防御のタイミングよくボタンを押すとダメージが増減する「アクションコマンド」を導入した作品。RPG初心者にも直感的に楽しめる設計が特徴。",
+    trivia: "任天堂のマリオとスクウェアが組んだ異色のコラボ作として、後の任天堂×スクウェアの関係を築くきっかけにもなった。",
+    descendants: [
+      { title: "ペーパーマリオ", year: 2000, platform: "N64", developer: "インテリジェントシステムズ",
+        note: "紙世界の演出で独自路線に発展",
+        about: "キャラクターが紙のように薄いという世界観を活かした、独自の演出とギミックを持つRPG。前作の戦闘システムを継承しつつ、コメディ色の強い物語で独自路線を築いた。",
+        trivia: "" },
+      { title: "Mario & Luigi RPG", year: 2003, platform: "GBA", developer: "アルファドリーム",
+        note: "2人同時操作でアクション性をさらに深化",
+        about: "マリオとルイージを同時に操作し、それぞれ異なるボタンでアクションを行う独自の戦闘システムを持つ作品。攻守両面でのタイミング操作をさらに複雑に発展させた。",
+        trivia: "" },
+      { title: "ロストオデッセイ", year: 2007, platform: "Xbox 360", developer: "ミストウォーカー",
+        note: "和製RPGにタイミングアクションを応用した傑作",
+        about: "坂口博信氏が手がけた、不死の主人公が千年の記憶を辿る和製RPG。攻撃時のタイミング入力でダメージが変化するシステムを採用し、重厚な物語と結びつけた。",
+        trivia: "" },
+      { title: "Clair Obscur: Expedition 33", year: 2025, platform: "Multi", developer: "Sandfall Interactive",
+        note: "パリィ・回避を融合し再興。TGA2025 GOTY受賞",
+        about: "ターン制コマンドバトルに、シビアなパリィ・回避のタイミング操作を融合させたフランス発のRPG。「JRPGを現代に蘇らせた」と評され、世界中で高い評価を得た。",
+        trivia: "The Game Awards 2025でゲーム・オブ・ザ・イヤーを受賞した。" }
+    ]
+  },
+  {
+    id: 18, title: "パズル&ドラゴンズ", year: 2012, platform: "iOS", meta: null, status: "todo",
+    epithet: "ガチャ・モバイルRPGの確立者",
+    significance: "<b>パズルとRPGを融合。</b>基本無料＋ガチャという課金モデルを日本市場に定着させた。",
+    developer: "ガンホー・オンライン・エンターテイメント",
+    about: "同じ色のドロップを繋げて消すパズルアクションと、モンスター収集・育成のRPG要素を組み合わせたスマートフォンゲーム。基本プレイ無料でガチャによって新モンスターを入手する課金モデルを確立した。",
+    trivia: "国内スマホゲーム市場の黎明期を象徴する社会現象的ヒットとなった。",
+    descendants: [
+      { title: "モンスターストライク", year: 2013, platform: "iOS/Android", developer: "mixi",
+        note: "引っぱりアクション×協力プレイで拡張",
+        about: "キャラクターを指で引っ張って敵にぶつける「引っぱりアクション」を軸にした対戦・協力型RPG。複数人での同時プレイに重きを置き、パズドラとは異なる方向性で市場を広げた。",
+        trivia: "" },
+      { title: "Fate/Grand Order", year: 2015, platform: "iOS/Android", developer: "ディライトワークス",
+        note: "物語重視のガチャRPGとして傑作の評価",
+        about: "人気シリーズ「Fate」を題材にした、シナリオのボリュームと質の高さで評価されるガチャ収集型RPG。ゲーム性以上に物語コンテンツとしての評価が高い。",
+        trivia: "" },
+      { title: "ウマ娘 プリティーダービー", year: 2021, platform: "iOS/Android", developer: "Cygames",
+        note: "育成×ガチャで社会現象化した最新到達点",
+        about: "実在の名馬をモチーフにしたキャラクターを育成するガチャRPG。育成シミュレーションとしての完成度の高さと、実馬の史実を丁寧に扱う姿勢で社会現象的な人気を獲得した。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 19, title: "原神", year: 2020, platform: "Multi", meta: null, status: "todo",
+    epithet: "二次元系オープンワールドRPGの確立者",
+    significance: "<b>アニメ調グラフィックの大規模オープンワールド。</b>無料ガチャRPGの新市場を開拓。",
+    developer: "HoYoverse (miHoYo)",
+    about: "アニメ調のトゥーンレンダリングで描かれた広大なオープンワールドを、基本無料で自由に探索できるアクションRPG。元素反応を活かした戦闘や高品質な世界観演出で世界的にヒットした。",
+    trivia: "「スマホゲームではオープンワールドは作れない」という当時の常識を覆した作品として語られる。",
+    descendants: [
+      { title: "崩壊：スターレイル", year: 2023, platform: "Multi", developer: "HoYoverse (miHoYo)",
+        note: "ターン制に転換した同社の傑作",
+        about: "原神と同じ開発元による、宇宙を舞台にしたターン制コマンドバトルのRPG。オープンワールドではなくステージクリア形式を採用し、遊びやすさを重視した設計に転換した。",
+        trivia: "" },
+      { title: "ゼンレスゾーンゼロ", year: 2024, platform: "Multi", developer: "HoYoverse (miHoYo)",
+        note: "アクション性を強化した都市型最新作",
+        about: "現代的な都市を舞台に、コンボを主体としたスピーディーなアクションバトルを取り入れた最新作。同社の他作品とは異なる、都会的でスタイリッシュな作風が特徴。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 20, title: "Vampire Survivors", year: 2021, platform: "PC", meta: null, status: "todo",
+    epithet: "サバイバーライクの発明者",
+    significance: "<b>移動のみ・攻撃は自動という操作性を発明。</b>ハクスラの快感を極限まで凝縮した新ジャンル。",
+    developer: "poncle",
+    about: "プレイヤーはキャラクターの移動だけを操作し、攻撃は自動で行われる中、押し寄せる大量の敵を一定時間生き延びるゲーム。武器やアイテムの組み合わせで画面を埋め尽くす爽快感が中毒性を生んだ。",
+    trivia: "個人開発者による低価格インディーゲームながら世界的ヒットとなり、「サバイバーライク」というジャンル名の語源になった。",
+    descendants: [
+      { title: "Brotato", year: 2023, platform: "Multi", developer: "Blobfish",
+        note: "武器選択の戦略性を高めた傑作評価作",
+        about: "ジャガイモの姿をしたキャラクターを操作するサバイバーライク。武器の所持数に制限を設け、限られた枠の中でどう組み合わせるかという戦略性を高めた。",
+        trivia: "" },
+      { title: "Halls of Torment", year: 2024, platform: "PC", developer: "Chasing Carrots",
+        note: "ハクスラ色を強めた正式リリース版",
+        about: "Diabloのようなダークファンタジーの世界観と、サバイバーライクのゲームプレイを組み合わせた作品。装備品の収集要素を強め、ハクスラとしての手触りを重視している。",
+        trivia: "" },
+      { title: "Megabonk", year: 2025, platform: "PC", developer: "individual developer",
+        note: "3D化し2週間で100万本突破の最新ヒット作",
+        about: "従来2Dが主流だったジャンルを3D視点で再構築したサバイバーライク。発売からわずか2週間で100万本を突破する異例のヒットとなった。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 21, title: "Fallout", year: 1997, platform: "PC", meta: null, status: "todo",
+    epithet: "ポストアポカリプスRPGの確立者",
+    significance: "<b>核戦争後の世界を舞台にした元祖。</b>選択とブラックユーモアでジャンルを定義。",
+    developer: "Black Isle Studios",
+    about: "核戦争後に荒廃した世界を舞台に、レトロフューチャー的な美術と、ブラックユーモアを交えた大人向けの物語で描くRPG。選択肢によって物語が大きく分岐する自由度の高さが特徴。",
+    trivia: "",
+    descendants: [
+      { title: "Fallout 3", year: 2008, platform: "Multi", developer: "Bethesda Game Studios",
+        note: "3Dオープンワールド化し世界的ヒットに",
+        about: "シリーズをフル3Dのオープンワールドとして再構築し、世界的な大ヒットとなった作品。荒廃したワシントンD.C.を自由に探索できる、シリーズの新たな型を確立した。",
+        trivia: "" },
+      { title: "Fallout: New Vegas", year: 2010, platform: "Multi", developer: "Obsidian Entertainment",
+        note: "選択の自由度で今も正史・傑作と評される",
+        about: "ラスベガスを模した荒廃地を舞台に、複数の勢力の思惑が絡み合う政治的な物語を描いた作品。選択の自由度と物語の質の高さから、シリーズ最高傑作という声も根強い。",
+        trivia: "" },
+      { title: "Fallout 4", year: 2015, platform: "Multi", developer: "Bethesda Game Studios",
+        note: "現行の最新ナンバリング。ドラマ化で再注目",
+        about: "拠点建築システムを新たに導入した最新ナンバリング作品。2024年に実写ドラマ化され世界的に話題を呼んだことで、原作ゲームにも再び大きな注目が集まった。",
+        trivia: "" }
+    ]
+  },
+  {
+    id: 22, title: "ドラッグオンドラグーン", year: 2003, platform: "PS2", meta: null, status: "todo",
+    epithet: "作家性駆動型RPGの確立者",
+    significance: "<b>個人の哲学・美学が全体を貫く「作家ゲーム」。</b>横尾太郎氏が切り開き、同種の作家がジャンルを広げた。",
+    developer: "cavia",
+    about: "空を飛ぶドラゴンと剣を操る主人公が、破滅に向かう戦争の中を戦い抜くアクションRPG。救いのないバッドエンド前提の物語構成で、当時のRPGにはなかった実存主義的なテーマを描いた。",
+    trivia: "横尾太郎氏の作家性を象徴する第一作であり、後のNieRシリーズへと続く精神の原点となった。",
+    descendants: [
+      { title: "サガ フロンティア", year: 1997, platform: "PS", developer: "スクウェア",
+        note: "河津秋敏氏。レベル制を廃した「王道にして異端」の代表作",
+        about: "複数の主人公から選んで自由に冒険できる、シナリオの一本道を排したRPG。行動によって能力が伸びる独自の成長システムで、王道でありながら異端という評価を確立した。",
+        trivia: "" },
+      { title: "NieR Replicant", year: 2010, platform: "PS3/Xbox 360", developer: "cavia",
+        note: "横尾太郎氏。DODのスピンオフで哲学的テーマを深化",
+        about: "ドラッグオンドラグーンのスピンオフとして生まれた作品。病に侵された妹を救うため戦う兄の物語で、生と死をめぐる重いテーマを、独自の非線形なゲームプレイと共に描いた。",
+        trivia: "" },
+      { title: "サガ スカーレットグレイス", year: 2016, platform: "PS Vita/PC", developer: "河津秋敏",
+        note: "河津秋敏氏。ダンジョンを排したソリッド設計の到達点",
+        about: "移動可能なダンジョンを排し、戦闘そのものに集中させたシステムを持つサガシリーズの一作。戦況を読み合う戦術性を突き詰めた、河津氏の作家性の到達点とされる。",
+        trivia: "" },
+      { title: "NieR:Automata", year: 2017, platform: "Multi", developer: "プラチナゲームズ",
+        note: "横尾太郎氏×プラチナゲームズ。世界的傑作、累計1000万本超",
+        about: "人類滅亡後の地球で、アンドロイドたちが機械生命体と戦う物語。哲学的なテーマと爽快なアクションを高い次元で融合させ、国内外で世界的な評価を獲得した。",
+        trivia: "全世界での累計出荷・DL本数は2026年時点で1000万本を突破している。" },
+      { title: "NieR Reincarnation", year: 2021, platform: "iOS/Android", developer: "アプリキッズ",
+        note: "横尾太郎氏。スマホ向けに世界観を拡張した最新展開",
+        about: "NieRシリーズの世界観をスマートフォン向けに拡張したガチャRPG。シリーズ特有の哲学的な物語と美術を、モバイル向けの形式で展開している。",
+        trivia: "" }
+    ]
+  }
+];
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 選択中の主流ID集合。空集合＝フィルタなし（全部通常表示）
+let activeFilter = new Set();
+
+function toggleFilter(id, event){
+  if(event) event.stopPropagation();
+  if(activeFilter.has(id)) activeFilter.delete(id);
+  else activeFilter.add(id);
+  render();
+}
+
+// 全バッジをオン（絞り込みなし＝全表示）にする、または現在何か絞り込み中なら解除する
+function toggleAllFilter(event){
+  if(event) event.stopPropagation();
+  activeFilter.clear();
+  render();
+}
+
+function toggleStatus(id, event){
+  if(event) event.stopPropagation();
+  const g = games.find(x => x.id === id);
+  g.status = g.status === "played" ? "todo" : "played";
+  render();
+}
+
+// ---- 詳細ダイアログ ----
+function openMainDetail(id, event){
+  if(event) event.stopPropagation();
+  const g = games.find(x => x.id === id);
+  if(!g) return;
+  showDetail({
+    title: g.title,
+    year: g.year,
+    platform: g.platform,
+    epithet: g.epithet,
+    positioning: g.significance,
+    developer: g.developer || '',
+    about: g.about || '',
+    trivia: g.trivia || '',
+    youtubeId: g.youtubeId || '',
+    videoSource: g.videoSource || '',
+    videoCredit: g.videoCredit || '',
+    color: colorForId(g.id)
+  });
+}
+
+function openBranchDetail(seriesId, year, event){
+  if(event) event.stopPropagation();
+  const g = games.find(x => x.id === seriesId);
+  if(!g) return;
+  const d = g.descendants.find(x => x.year === year);
+  if(!d) return;
+  showDetail({
+    title: d.title,
+    year: d.year,
+    platform: d.platform || '',
+    epithet: '',
+    positioning: d.note,
+    developer: d.developer || '',
+    about: d.about || '',
+    trivia: d.trivia || '',
+    youtubeId: d.youtubeId || '',
+    videoSource: d.videoSource || '',
+    videoCredit: d.videoCredit || '',
+    color: colorForId(g.id)
+  });
+}
+
+function showDetail(info){
+  const content = document.getElementById('detailContent');
+  const epithetHtml = info.epithet
+    ? `<div class="detail-epithet" style="background:${info.color}22; color:${info.color}; border:1px solid ${info.color}55;">${esc(info.epithet)}</div>`
+    : '';
+
+  // 動画: YouTube埋め込み（youtubeIdがある場合のみ表示）。出典種別に応じてラベルを添える。
+  const VIDEO_SOURCE_LABELS = {
+    official: '公式トレーラー',
+    officialish: '公式配信元による映像',
+    thirdparty: 'プレイ映像'
+  };
+  const videoHtml = info.youtubeId
+    ? `<div class="detail-video-wrap">
+        <iframe src="https://www.youtube-nocookie.com/embed/${esc(info.youtubeId)}"
+          title="${esc(info.title)} video" frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen loading="lazy"></iframe>
+      </div>
+      <div class="detail-video-caption">
+        <span>${esc(VIDEO_SOURCE_LABELS[info.videoSource] || 'プレイ映像')}${info.videoCredit ? ` ・ 提供: ${esc(info.videoCredit)}` : ''}</span>
+        <a href="https://www.youtube.com/watch?v=${esc(info.youtubeId)}" target="_blank" rel="noopener noreferrer" class="detail-video-link">
+          YouTubeで開く
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M17 7H8M17 7V16"></path></svg>
+        </a>
+      </div>`
+    : '';
+
+  // 項目1: 開発元 / 発売年 / プラットフォーム（各項目にラベルを付けて何の情報か明示）
+  const metaParts = [];
+  if(info.developer) metaParts.push(`<span class="detail-meta-label">開発</span>${esc(info.developer)}`);
+  metaParts.push(`<span class="detail-meta-label">発売</span>${info.year}年`);
+  if(info.platform) metaParts.push(`<span class="detail-meta-label">機種</span>${esc(info.platform)}`);
+  const metaHtml = `<div class="detail-meta">${metaParts.map(m => `<span class="detail-meta-item">${m}</span>`).join('')}</div>`;
+
+  // 項目2: 系譜内での位置づけ
+  const positioningHtml = info.positioning
+    ? `<div class="detail-section">
+        <div class="detail-section-label">系譜内での位置づけ</div>
+        <div class="detail-section-body">${info.positioning}</div>
+      </div>`
+    : '';
+
+  // 項目3: どんなゲームか
+  const aboutHtml = info.about
+    ? `<div class="detail-section">
+        <div class="detail-section-label">どんなゲームか</div>
+        <div class="detail-section-body">${esc(info.about)}</div>
+      </div>`
+    : '';
+
+  // 項目4: 豆知識・評価（あれば表示）
+  const triviaHtml = info.trivia
+    ? `<div class="detail-section detail-trivia">
+        <div class="detail-section-label">豆知識</div>
+        <div class="detail-section-body">${esc(info.trivia)}</div>
+      </div>`
+    : '';
+
+  content.innerHTML = `
+    <button class="detail-close" onclick="closeDetail(event)" aria-label="閉じる">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+    ${videoHtml || `<div class="detail-accent" style="background:${info.color};"></div>`}
+    <div class="detail-body">
+      <div class="detail-title">${esc(info.title)}</div>
+      ${epithetHtml}
+      ${metaHtml}
+      ${positioningHtml}
+      ${aboutHtml}
+      ${triviaHtml}
+    </div>
+  `;
+  document.getElementById('detailOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail(event){
+  if(event) event.stopPropagation();
+  document.getElementById('detailOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeDetailOnOverlay(event){
+  if(event.target.id === 'detailOverlay') closeDetail(event);
+}
+
+// ---- layout constants ----
+const YEAR_PX = 90;
+const PAD_YEARS = 1.2;
+const MAIN_NODE_GAP = 214;   // 本流ノード全体の縦幅（epithetバッジ追加分+26px、行内でのドット位置に使用）
+const BRANCH_ROW_H = 148;    // レーン1本あたりの縦間隔（後継カードの実高さに合わせて再計算）
+const MIN_MAIN_X_GAP = 210;  // 本流ノード同士の最小横間隔（直下の後継作カード幅+余白を確保）
+const BRANCH_CARD_W = 126;   // 後継作カードの幅（CSSと一致させる）
+
+function yearToX(year, minYear){
+  return (year - minYear + PAD_YEARS) * YEAR_PX;
+}
+
+// idを基準に固定の系列色を返す（定義順・年代順に依存させず一貫性を保つ）
+function colorForId(id){
+  return LINEAGE_COLORS[(id - 1) % LINEAGE_COLORS.length];
+}
+
+function render(){
+  document.getElementById('genreCount').textContent = games.length + ' TITLES';
+
+  // epithetフィルタチップの描画（先頭に全表示トグルを固定表示）
+  const filterEl = document.getElementById('epithetFilter');
+  const allChip = `<button class="epithet-chip all-toggle" onclick="toggleAllFilter(event)">
+      ${activeFilter.size === 0 ? 'すべて表示中' : `絞り込み解除 (${activeFilter.size})`}
+    </button>`;
+  const badgeChips = games.map((g) => {
+    const color = colorForId(g.id);
+    const isActive = activeFilter.size === 0 || activeFilter.has(g.id);
+    return `<button class="epithet-chip ${isActive ? 'active' : ''}"
+        style="background:${color}22; color:${color}; border:1px solid ${color}55;"
+        onclick="toggleFilter(${g.id}, event)">${esc(g.epithet)}</button>`;
+  }).join('');
+  filterEl.innerHTML = allChip + badgeChips;
+
+  const allYears = [];
+  games.forEach(g => {
+    allYears.push(g.year);
+    g.descendants.forEach(d => allYears.push(d.year));
+  });
+  const minYear = Math.min(...allYears);
+  const maxYear = Math.max(...allYears);
+
+  const sorted = [...games].sort((a,b) => a.year - b.year);
+
+  // 本流ノードのX座標（最小間隔を確保）
+  const mainX = [];
+  sorted.forEach((g, i) => {
+    let x = yearToX(g.year, minYear);
+    if(i > 0){
+      x = Math.max(x, mainX[i-1] + MIN_MAIN_X_GAP);
+    }
+    mainX.push(x);
+  });
+
+  // 各系列の後継作は、本流タイトルの真下に固定X（本流と同じX座標）で縦一列に年代順で並べる。
+  const allBranches = [];
+  sorted.forEach((g, gi) => {
+    const mainXPos = mainX[gi];
+    const color = colorForId(g.id);
+    const descSorted = [...g.descendants].sort((a,b) => a.year - b.year);
+    descSorted.forEach((d, di) => {
+      allBranches.push({
+        ...d, x: mainXPos, color, seriesIndex: gi, lane: di
+      });
+    });
+  });
+
+  let maxBranchRows = 1;
+  sorted.forEach(g => { maxBranchRows = Math.max(maxBranchRows, g.descendants.length); });
+  const laneCount = maxBranchRows;
+
+  const contentWidth = Math.max(
+    (maxYear - minYear + PAD_YEARS * 2) * YEAR_PX,
+    mainX[mainX.length - 1] + 220
+  ); // yearToXのPAD_YEARSで左余白、末尾ノード+220pxで右余白を確保済み
+
+  // ---- 上段（本流固定行）: 意義カード＋タイトル＋バッジ＋丸のみを描画 ----
+  const MAIN_ROW_H = MAIN_NODE_GAP + 30; // 意義カードからステータスアイコンまでの実高さ+余白
+  let mainNodesHtml = '';
+  let mainAxisSvg = '';
+  const dotY = MAIN_NODE_GAP; // 行内でのドットのY位置（意義カード＋タイトル分だけ下）
+
+  for(let i = 0; i < sorted.length - 1; i++){
+    mainAxisSvg += `<line x1="${mainX[i]}" y1="${dotY}" x2="${mainX[i+1]}" y2="${dotY}"
+      stroke="#4A4258" stroke-width="2.5" />`;
+  }
+
+  sorted.forEach((g, gi) => {
+    const played = g.status === "played";
+    const x = mainX[gi];
+    const color = colorForId(g.id);
+    const isActive = activeFilter.size === 0 || activeFilter.has(g.id);
+
+    mainNodesHtml += `<div class="main-node ${isActive ? '' : 'dimmed'}" style="left:${x}px; top:0px;" onclick="openMainDetail(${g.id}, event)">
+      <div class="main-note"><div class="main-note-inner">${g.significance}</div></div>
+      <div class="main-year">${g.year}</div>
+      <div class="main-title">${esc(g.title)}</div>
+      <div class="main-epithet" style="background:${color}22; color:${color}; border:1px solid ${color}55;">${esc(g.epithet)}</div>
+      <div class="main-dot ${played?'played':'todo'}" style="background:${color}" onclick="toggleStatus(${g.id}, event)"></div>
+      <div class="main-status ${played?'played':''}" onclick="toggleStatus(${g.id}, event)" aria-label="${played?'遊んだ済み':'遊ぶべき'}">
+        ${played ? ICON_CHECK : ICON_CLOCK}
+      </div>
+    </div>`;
+  });
+
+  const mainSvg = `<svg class="lines" width="${contentWidth}" height="${MAIN_ROW_H}">${mainAxisSvg}</svg>`;
+  const mainRowInner = document.getElementById('mainRowInner');
+  mainRowInner.style.width = contentWidth + 'px';
+  mainRowInner.style.height = MAIN_ROW_H + 'px';
+  mainRowInner.innerHTML = mainSvg + mainNodesHtml;
+
+  // ---- 下段（後継作スクロール領域）: 各系列の縦線+カードを描画。上端(y=0)を軸の位置とする ----
+  const branchAreaHeight = laneCount * BRANCH_ROW_H + 30;
+  let branchSvg = '';
+  let branchNodesHtml = '';
+
+  allBranches.forEach(b => {
+    const dy = b.lane * BRANCH_ROW_H + 20;
+    const dotYb = dy + 8;
+    const parentId = sorted[b.seriesIndex].id;
+    const isActive = activeFilter.size === 0 || activeFilter.has(parentId);
+
+    branchSvg += `
+      <line x1="${b.x}" y1="0" x2="${b.x}" y2="${dotYb - 6}"
+        stroke="${b.color}" stroke-width="1.6" opacity="${isActive ? 0.8 : 0.12}" />
+    `;
+
+    branchNodesHtml += `<div class="branch-node ${isActive ? '' : 'dimmed'}" style="left:${b.x}px; top:${dy}px;" onclick="openBranchDetail(${parentId}, ${b.year}, event)">
+      <div class="branch-dot" style="background:${b.color}"></div>
+      <div class="branch-card" style="border-top-color:${b.color}">
+        <div class="branch-year">${b.year}</div>
+        <div class="branch-title">${esc(b.title)}</div>
+        <div class="branch-note">${esc(b.note)}</div>
+      </div>
+    </div>`;
+  });
+
+  const branchSvgWrap = `<svg class="lines" width="${contentWidth}" height="${branchAreaHeight}">${branchSvg}</svg>`;
+  const branchAreaInner = document.getElementById('branchAreaInner');
+  branchAreaInner.style.width = contentWidth + 'px';
+  branchAreaInner.style.height = branchAreaHeight + 'px';
+  branchAreaInner.innerHTML = branchSvgWrap + branchNodesHtml;
+
+  // ---- header高さに応じて本流固定行のtop位置を調整 ----
+  const headerEl = document.querySelector('header');
+  const mainOuterEl = document.getElementById('mainRowOuter');
+  if(headerEl && mainOuterEl){
+    mainOuterEl.style.top = headerEl.offsetHeight + 'px';
+  }
+
+  // ---- 横スクロール位置を上段・下段で同期する（rAFで間引き、慣性スクロールを妨げない） ----
+  const mainOuter = document.getElementById('mainRowOuter');
+  const branchOuter = document.getElementById('branchAreaOuter');
+  if(!mainOuter.dataset.synced){
+    mainOuter.dataset.synced = '1';
+    let ticking = false;
+    let source = null;
+
+    function syncScroll(from, to){
+      if(ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        to.scrollLeft = from.scrollLeft;
+        ticking = false;
+      });
+    }
+
+    mainOuter.addEventListener('scroll', () => {
+      if(source === 'branch') return;
+      source = 'main';
+      syncScroll(mainOuter, branchOuter);
+    }, { passive: true });
+
+    branchOuter.addEventListener('scroll', () => {
+      if(source === 'main') return;
+      source = 'branch';
+      syncScroll(branchOuter, mainOuter);
+    }, { passive: true });
+
+    // スクロールが止まったら発生源をリセットし、次のジェスチャーをどちらからでも受け付ける
+    let resetTimer;
+    const resetSource = () => {
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(() => { source = null; }, 120);
+    };
+    mainOuter.addEventListener('scroll', resetSource, { passive: true });
+    branchOuter.addEventListener('scroll', resetSource, { passive: true });
+  }
+}
+
+render();
+window.addEventListener('resize', () => {
+  const headerEl = document.querySelector('header');
+  const mainOuterEl = document.getElementById('mainRowOuter');
+  if(headerEl && mainOuterEl) mainOuterEl.style.top = headerEl.offsetHeight + 'px';
+});
+</script>
+</body>
+</html>
